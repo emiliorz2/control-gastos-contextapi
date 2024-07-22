@@ -1,9 +1,11 @@
-import { useState } from "react";
-import type { DraftExpense } from "../types";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import type { DraftExpense, Value } from "../types";
 import { categories } from "../data/categories"
 import DatePicker from 'react-date-picker';
 import 'react-date-picker/dist/DatePicker.css';
 import 'react-calendar/dist/Calendar.css';
+import { ErrorMessage } from "./ErrorMessage";
+import { useBudget } from "../hooks/useBudget";
 
 
 
@@ -15,11 +17,67 @@ export const ExpenseForm = () => {
         date: new Date()
     })
 
-    
+    const [error, setError] = useState('')
+
+    const {dispatch, state} = useBudget()
+
+    useEffect(() => {
+        if(state.editingId){
+            const editingExpense = state.expenses.filter( currentExpense => currentExpense.id === state.editingId )[0]
+            setExpense(editingExpense)
+        }
+    }, [state.editingId])
+
+    const handleChange = (e: ChangeEvent<HTMLInputElement> | ChangeEvent<HTMLSelectElement>) => {
+        const {name, value} = e.target
+        const isAmountField = ['amount'].includes(name)
+
+        setExpense({
+            ...expense,
+            [name] : isAmountField ? +value : value
+        })
+        
+    }
+
+    const handleDateChange = (value: Value) => {
+        setExpense({
+            ...expense,
+            date: value
+        })
+        
+    }
+
+    const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+
+        //validar
+
+        if(Object.values(expense).includes('')) {
+            setError('error.... tiene q incluir todos los campos')
+            return //esto hace q en caso de que la validacion no pase no se pasa el mensaje de todo bien
+        }
+        
+        // agregar un nuevo gasto
+        dispatch({type:'add-expense', payload: {expense}})
+
+        //reiniciar state 'limpiar form'
+        setExpense({
+            amount: 0,
+            expenseName: '',
+            category: '',
+            date: new Date()
+        })
+
+        
+        
+    }
 
     return (
-        <form className="space-y-5">
+        <form className="space-y-5" onSubmit={handleSubmit}>
             <legend className="uppercase text-center text-2xl font-black border-b-4 border-blue-500 py-2">
+                Nuevo Gasto</legend>
+
+                {error && <ErrorMessage>{error}</ErrorMessage>}
 
                 <div className="flex flex-col gap-2">
                     <label
@@ -35,6 +93,7 @@ export const ExpenseForm = () => {
                         placeholder="Añade el nombre del gasto"
                         className="bg-slate-100 p-2"
                         value={expense.expenseName}
+                        onChange={handleChange}
                     />
                 </div>
 
@@ -52,6 +111,7 @@ export const ExpenseForm = () => {
                         placeholder="Añade la cantidad del gasto: ej. 300"
                         className="bg-slate-100 p-2"
                         value={expense.amount}
+                        onChange={handleChange}
                     />
                 </div>
 
@@ -67,6 +127,7 @@ export const ExpenseForm = () => {
                         name="category"
                         className="bg-slate-100 p-2"
                         value={expense.category}
+                        onChange={handleChange}
                     >
                         <option value="">-- Seleccione --</option>
                         {categories.map(category => (
@@ -88,6 +149,7 @@ export const ExpenseForm = () => {
                     <DatePicker
                         className="bg-slate-100 p-2 border-0"
                         value={expense.date}
+                        onChange={handleDateChange}
                     />
                 </div>
 
@@ -96,7 +158,7 @@ export const ExpenseForm = () => {
                     className="bg-blue-600 cursor-pointer w-full p-2 text-white uppercase font-bold rounded-lg"
                     value={'Registrar Gasto'}
                 />
-            </legend>
+            
 
         </form>
     )
