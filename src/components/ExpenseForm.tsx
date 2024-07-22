@@ -6,6 +6,7 @@ import 'react-date-picker/dist/DatePicker.css';
 import 'react-calendar/dist/Calendar.css';
 import { ErrorMessage } from "./ErrorMessage";
 import { useBudget } from "../hooks/useBudget";
+import { formatCurrency } from "../helpers/intex";
 
 
 
@@ -18,13 +19,15 @@ export const ExpenseForm = () => {
     })
 
     const [error, setError] = useState('')
+    const [previusAmount, setPreviusAmount] = useState(0)
 
-    const {dispatch, state} = useBudget()
+    const {dispatch, state, remainingBudget} = useBudget()
 
     useEffect(() => {
         if(state.editingId){
             const editingExpense = state.expenses.filter( currentExpense => currentExpense.id === state.editingId )[0]
             setExpense(editingExpense)
+            setPreviusAmount(editingExpense.amount)
         }
     }, [state.editingId])
 
@@ -56,9 +59,19 @@ export const ExpenseForm = () => {
             setError('error.... tiene q incluir todos los campos')
             return //esto hace q en caso de que la validacion no pase no se pasa el mensaje de todo bien
         }
+
+        //validar q no me pase del budget
+        if((expense.amount - previusAmount) > remainingBudget) {
+            setError(`ese gasto se sale del presupuesto quedan  ${formatCurrency(remainingBudget +  previusAmount)}`)
+            return //esto hace q en caso de que la validacion no pase no se pasa el mensaje de todo bien
+        }
         
-        // agregar un nuevo gasto
-        dispatch({type:'add-expense', payload: {expense}})
+        // agregar o actualizar gasto
+        if(state.editingId) {
+            dispatch({type: 'update-expense', payload: {expense: {id: state.editingId, ...expense}}})
+        }else {
+            dispatch({type:'add-expense', payload: {expense}})
+        }
 
         //reiniciar state 'limpiar form'
         setExpense({
@@ -68,14 +81,14 @@ export const ExpenseForm = () => {
             date: new Date()
         })
 
-        
+        setPreviusAmount(0)
         
     }
 
     return (
         <form className="space-y-5" onSubmit={handleSubmit}>
             <legend className="uppercase text-center text-2xl font-black border-b-4 border-blue-500 py-2">
-                Nuevo Gasto</legend>
+                {state.editingId ? 'Guardar Cambios' : 'Nuevo Gasto'}</legend>
 
                 {error && <ErrorMessage>{error}</ErrorMessage>}
 
@@ -156,7 +169,7 @@ export const ExpenseForm = () => {
                 <input
                     type="submit"
                     className="bg-blue-600 cursor-pointer w-full p-2 text-white uppercase font-bold rounded-lg"
-                    value={'Registrar Gasto'}
+                    value={state.editingId ? 'Actualizar Gasto' : 'Registrar Gasto'}
                 />
             
 
